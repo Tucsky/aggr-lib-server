@@ -67,7 +67,11 @@ export async function processCommits(commits) {
     const record = records[id]
 
     console.log(`${record.method} ${record.jsonPath}`)
-    await adapter[record.method](record)
+    try {
+      await adapter[record.method](record)
+    } catch (error) {
+      console.error(`Failed to ${record.method} ${record}: ${error.message}`)
+    }
   }
 
   saveMetadatas()
