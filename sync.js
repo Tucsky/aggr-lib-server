@@ -146,6 +146,11 @@ export async function getCreationDate(path) {
 export async function fetchImage(path) {
   try {
     const response = await fetchFile(path)
+
+    if (response.status === 404) {
+      return null
+    }
+    
     const json = await response.json()
 
     const imageBuffer = Buffer.from(json.content, 'base64')
@@ -159,6 +164,11 @@ export async function fetchImage(path) {
 export async function fetchJson(path) {
   try {
     const response = await fetchFile(path)
+
+    if (response.status === 404) {
+      return null
+    }
+
     const data = await response.json()
 
     return JSON.parse(Buffer.from(data.content, 'base64').toString('utf8'))
