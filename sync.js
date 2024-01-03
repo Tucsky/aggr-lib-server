@@ -24,6 +24,7 @@ function processChange(remotePath, records, shouldClear = false) {
   const parentFolder = path.pop()
   const basePath = path.join('/')
   const authorPath = `${basePath}/${parentFolder}`
+  const filePath = `${authorPath}/${id}`
   const isImage = /\.png$/i.test(remotePath)
 
   if (!basePath.length) {
@@ -34,8 +35,8 @@ function processChange(remotePath, records, shouldClear = false) {
     id,
     basePath,
     authorPath,
-    jsonPath: `${authorPath}/${id}.json`,
-    imagePath: `${authorPath}/${id}.png`,
+    jsonPath: `${filePath}.json`,
+    imagePath: `${filePath}.png`,
     method: 'sync',
   }
 
@@ -43,7 +44,7 @@ function processChange(remotePath, records, shouldClear = false) {
     record.method = shouldClear ? 'clear' : 'sync'
   }
 
-  records[basePath] = record
+  records[filePath] = record
 }
 
 export async function processCommits(commits) {
@@ -150,7 +151,7 @@ export async function fetchImage(path) {
     const imageBuffer = Buffer.from(json.content, 'base64')
     return imageBuffer
   } catch (error) {
-    console.error(error)
+    console.error(`Failed to fetch image: ${error.message}`)
     return null
   }
 }
@@ -162,7 +163,7 @@ export async function fetchJson(path) {
 
     return JSON.parse(Buffer.from(data.content, 'base64').toString('utf8'))
   } catch (error) {
-    console.error(error)
+    console.error(`Failed to fetch json: ${error.message}`)
     return null
   }
 }
