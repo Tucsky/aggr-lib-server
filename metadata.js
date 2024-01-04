@@ -64,7 +64,7 @@ export async function updateItem(basePath, metadataItem) {
     await cacheMetadata(basePath)
   }
 
-  const index = METADATA_CACHE[basePath].data.findIndex((row) => row.filename === metadataItem.filename)
+  const index = METADATA_CACHE[basePath].data.findIndex((row) => row.jsonPath === metadataItem.jsonPath)
 
   if (index !== -1) {
     METADATA_CACHE[basePath].data.splice(index, 1)

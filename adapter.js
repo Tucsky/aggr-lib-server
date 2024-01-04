@@ -20,7 +20,7 @@ async function sync({ id, basePath, jsonPath, imagePath, authorPath }) {
   }
 
   const image = await fetchImage(imagePath)
-  json.createdAt = await getCreationDate(jsonPath)
+  json.createdAt = json.createdAt || await getCreationDate(jsonPath)
   json.updatedAt = Date.now()
   const author = authorPath.split('/').pop()
 
