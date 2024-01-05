@@ -1,7 +1,6 @@
 import fetch from 'node-fetch'
 import fs from 'fs'
-import { saveMetadatas } from './metadata.js'
-import adapter from './adapter.js'
+import { removeItem, saveMetadatas, updateItem } from './metadata.js'
 
 export const STATIC_PATH = 'static'
 
@@ -69,7 +68,11 @@ export async function processCommits(commits) {
 
     console.log(`${record.method} ${record.jsonPath}`)
     try {
-      await adapter[record.method](record)
+      if (record.method === 'sync') {
+        await sync(record)
+      } else {
+        await clear(record)
+      }
     } catch (error) {
       console.error(`Failed to ${record.method} ${record}: ${error.message}`)
     }
@@ -238,4 +241,44 @@ export async function ensureDirExists(basePath) {
       }
     })
   })
+}
+
+export async function sync({ id, basePath, jsonPath, imagePath, authorPath }) {
+  await ensureDirExists(jsonPath)
+
+  const json = await fetchJson(jsonPath)
+
+  if (!json || !json.data) {
+    console.error('Invalid payload')
+    return
+  }
+
+  const image = await fetchImage(imagePath)
+  json.createdAt = json.createdAt || await getCreationDate(jsonPath)
+  json.updatedAt = json.updatedAt || Date.now()
+  const author = authorPath.split('/').pop()
+
+  const metadata = {
+    id,
+    jsonPath,
+    author,
+    name: json.name.split(':').pop(),
+    createdAt: json.createdAt,
+    updatedAt: json.updatedAt,
+    description: json.data.description,
+  }
+
+  if (image && (await writeBlob(imagePath, image))) {
+    metadata.imagePath = imagePath
+  }
+
+  await writeJson(jsonPath, json)
+  await updateItem(basePath, metadata)
+}
+
+export async function clear({ basePath, jsonPath, imagePath, authorPath }) {
+  await removeFile(jsonPath)
+  await removeFile(imagePath)
+  await removeDirIfEmpty(authorPath)
+  await removeItem(basePath, jsonPath)
 }

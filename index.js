@@ -1,26 +1,29 @@
 import dotenv from 'dotenv'
 import Koa from 'koa'
 import Router from 'koa-router'
-import cors from '@koa/cors';
-import serve from 'koa-static';
+import cors from '@koa/cors'
+import serve from 'koa-static'
 import { koaBody } from 'koa-body'
-import { fileURLToPath } from 'url';
-import path, { dirname } from 'path';
+import { fileURLToPath } from 'url'
+import path, { dirname } from 'path'
 import { isValidSignature } from './utils.js'
 import { processCommits } from './sync.js'
 import { getMetadata } from './metadata.js'
+import { publish } from './publish.js'
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
 
 dotenv.config()
 
 const app = new Koa()
 
-app.use(cors({
-  origin: process.env.ORIGIN,
-  allowMethods: ['GET', 'POST'],
-}));
+app.use(
+  cors({
+    origin: process.env.ORIGIN,
+    allowMethods: ['GET', 'POST'],
+  })
+)
 
 const router = new Router()
 
@@ -45,28 +48,50 @@ router.post(
   }
 )
 
+router.post(
+  '/publish/:path*',
+  koaBody({
+    multipart: true,
+  }),
+  async (ctx) => {
+    const basePath = ctx.params.path
+    const files = ctx.request.files
+
+    try {
+      const url = await publish(basePath, files)
+      ctx.body = {
+        url
+      }
+      ctx.type = 'application/json'
+    } catch (error) {
+      console.error(error.message)
+      ctx.status = 500
+    }
+  }
+)
+
 router.get('/library/:path*', async (ctx) => {
-  const basePath = ctx.params.path;
+  const basePath = ctx.params.path
 
   if (!basePath) {
-    ctx.status = 400;
-    ctx.body = 'Metadata path is required';
+    ctx.status = 400
+    ctx.body = 'Metadata path is required'
     return
   }
 
   try {
-    const metadata = await getMetadata(basePath);
+    const metadata = await getMetadata(basePath)
 
-    ctx.body = metadata;
-    ctx.type = 'application/json';
+    ctx.body = metadata
+    ctx.type = 'application/json'
   } catch (error) {
-    ctx.status = 500;
-    ctx.body = 'Error retrieving metadata';
-    console.error('Error in /metadata route:', error);
+    ctx.status = 500
+    ctx.body = 'Error retrieving metadata'
+    console.error('Error in /metadata route:', error)
   }
-});
+})
 
-app.use(serve(path.join(__dirname, '/static')));
+app.use(serve(path.join(__dirname, '/static')))
 
 app.use(router.routes()).use(router.allowedMethods())
 
