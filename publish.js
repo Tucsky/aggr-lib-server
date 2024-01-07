@@ -44,7 +44,7 @@ async function createPullRequest(branch, title, description = null) {
     if (PR.state === 'closed') {
       const reopenUrl = `https://api.github.com/repos/${process.env.GITHUB_REPO}/pulls/${PR.number}`
       const body = JSON.stringify({ state: 'open' })
-      await fetch(reopenUrl, { method: 'PATCH', headers, body })
+      await fetch(reopenUrl, { method: 'PATCH', headers: getHeaders(), body })
     }
     return PR
   }
