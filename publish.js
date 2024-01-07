@@ -37,16 +37,24 @@ async function createFile(branch, title, filePath, fileContent, commitSha = null
 
 async function createPullRequest(branch, title, description = null) {
   const [owner] = process.env.GITHUB_REPO.split('/')
-  const PRs = await (await fetch(`https://api.github.com/repos/${process.env.GITHUB_REPO}/pulls?head=${owner}:${branch}&state=all`, { headers: getHeaders() })).json()
+  const PRs = await (
+    await fetch(`https://api.github.com/repos/${process.env.GITHUB_REPO}/pulls?head=${owner}:${branch}&state=all`, {
+      headers: getHeaders(),
+    })
+  ).json()
 
   if (PRs.length > 0) {
     const PR = PRs[0]
     if (PR.state === 'closed') {
       const reopenUrl = `https://api.github.com/repos/${process.env.GITHUB_REPO}/pulls/${PR.number}`
       const body = JSON.stringify({ state: 'open' })
-      await fetch(reopenUrl, { method: 'PATCH', headers: getHeaders(), body })
+      const response = await fetch(reopenUrl, { method: 'PATCH', headers: getHeaders(), body })
+      if (response.ok) {
+        return PR
+      }
+    } else {
+      return PR
     }
-    return PR
   }
 
   const url = `https://api.github.com/repos/${process.env.GITHUB_REPO}/pulls`
@@ -179,10 +187,10 @@ export async function publish(basePath, files) {
   const wrappedJsonData = {
     type,
     name: `${basePath.replace(/\//g, ':')}:${jsonData.name}`,
-    data: jsonData
+    data: jsonData,
   }
 
-  const jsonFile = Buffer.from(JSON.stringify(wrappedJsonData)).toString('base64');
+  const jsonFile = Buffer.from(JSON.stringify(wrappedJsonData, null, 2)).toString('base64')
   const pngFile = fs.readFileSync(files.pngFile.filepath, 'base64')
 
   const baseSha = await getBaseSha()
@@ -191,12 +199,7 @@ export async function publish(basePath, files) {
   const title = getTitle(basePath, id)
   const branchResponse = await createBranch(baseSha, branchName)
   const branchSha = !branchResponse.object ? await getBranchSha(branchName) : branchResponse.object.sha
-  await createCommitWithMultipleFiles(
-    branchSha,
-    branchName,
-    await getFiles(path, branchName, jsonFile, pngFile),
-    title
-  )
+  await createCommitWithMultipleFiles(branchSha, branchName, await getFiles(path, branchName, jsonFile, pngFile), title)
 
   const pullRequestResponse = await createPullRequest(branchName, title, description, !!branchResponse.object)
 
