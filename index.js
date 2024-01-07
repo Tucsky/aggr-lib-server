@@ -40,7 +40,7 @@ router.post(
 
     const payload = JSON.parse(ctx.request.body.payload)
 
-    if (payload && payload.commits) {
+    if (payload && payload.ref === 'refs/heads/main' && payload.commits) {
       processCommits(payload.commits)
     }
 
