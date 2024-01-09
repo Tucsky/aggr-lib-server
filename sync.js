@@ -105,7 +105,7 @@ export function readJson(path) {
 
 export function writeJson(path, jsonContent) {
   return new Promise((resolve) => {
-    fs.writeFile(`${STATIC_PATH}/${path}`, JSON.stringify(jsonContent), (err) => {
+    fs.writeFile(`${STATIC_PATH}/${path}`, JSON.stringify(jsonContent, null, 2), (err) => {
       if (err) {
         console.error(`Error writing JSON file: ${err}`)
       } else {
@@ -254,8 +254,8 @@ export async function sync({ id, basePath, jsonPath, imagePath, authorPath }) {
   }
 
   const image = await fetchImage(imagePath)
-  json.createdAt = json.createdAt || await getCreationDate(jsonPath)
-  json.updatedAt = json.updatedAt || Date.now()
+  json.data.createdAt = json.data.createdAt || await getCreationDate(jsonPath)
+  json.data.updatedAt = Date.now()
   const author = authorPath.split('/').pop()
 
   const metadata = {
@@ -263,8 +263,8 @@ export async function sync({ id, basePath, jsonPath, imagePath, authorPath }) {
     jsonPath,
     author,
     name: json.name.split(':').pop(),
-    createdAt: json.createdAt,
-    updatedAt: json.updatedAt,
+    createdAt: json.data.createdAt,
+    updatedAt: json.data.updatedAt,
     description: json.data.description,
   }
 
