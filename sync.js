@@ -249,7 +249,7 @@ export async function sync({ id, basePath, jsonPath, imagePath, authorPath }) {
   const json = await fetchJson(jsonPath)
 
   if (!json || !json.data) {
-    console.error('Invalid payload')
+    clear({ id, basePath, jsonPath, imagePath, authorPath })
     return
   }
 
