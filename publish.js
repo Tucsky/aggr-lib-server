@@ -215,6 +215,7 @@ export async function publish(basePath, files) {
 
 export async function fetchCommitHistory(path) {
   const url = `https://api.github.com/repos/${process.env.GITHUB_REPO}/commits?path=${path}`;
+  console.log('fetch commit history', path)
 
   try {
     const response = await fetch(url, {
@@ -232,14 +233,14 @@ export async function fetchCommitHistory(path) {
       sha: record.sha,
     }))
   } catch (error) {
-    console.error('Error fetching commit history:', error);
+    console.error('Error fetching commit history:', error.message);
     return [];
   }
 }
 
 export async function fetchFileAtCommit(path, sha) {
   const fileContentUrl = `https://api.github.com/repos/${process.env.GITHUB_REPO}/contents/${path}?ref=${sha}`;
-
+  console.log('fetch file at commit', path, sha)
   try {
     const response = await fetch(fileContentUrl, {
       headers: getHeaders()
@@ -253,6 +254,6 @@ export async function fetchFileAtCommit(path, sha) {
 
     return Buffer.from(data.content, 'base64').toString('utf8')
   } catch (error) {
-    console.error(`Error fetching file content for commit ${commit.sha}:`, error);
+    console.error(`Error fetching file content for commit ${sha}:`, error.message);
   }
 }
