@@ -1,5 +1,6 @@
 import fetch from 'node-fetch'
 import fs from 'fs'
+import { singularize } from './utils.js'
 
 const base = 'main'
 
@@ -78,14 +79,14 @@ async function getBaseSha() {
   return json.object.sha
 }
 
-function getTitle(basePath, id) {
+function getTitle(basePath, id, isUpdate = false) {
   const [a, b] = basePath.split('/').map((part) => part.replace(/s$/, ''))
 
   if (!b) {
-    return `New ${a} "${id}"`
+    return `${isUpdate ? 'Update' : 'New'} ${a} "${id}"`
   }
 
-  return `New ${b}'s ${a} "${id}"`
+  return `${isUpdate ? 'Update' : 'New'} ${b}'s ${a} "${id}"`
 }
 
 async function getFileSha(path, branch) {
@@ -183,12 +184,16 @@ export async function publish(basePath, files) {
   const author = jsonData.author
   const description = jsonData.description
   const id = jsonData.id
-  const type = basePath.split(/\//g)[0]
+  const type = singularize(basePath.split(/\//g)[0])
+  const singularizedType = singularize(type)
   const wrappedJsonData = {
-    type,
-    name: `${basePath.replace(/\//g, ':')}:${jsonData.name}`,
+    type: singularizedType,
+    name: `${basePath.replace(new RegExp(`^${type}/`), `${singularizedType}/`).replace(/\//g, ':').split(':')}:${jsonData.name}`,
     data: jsonData,
   }
+
+  delete jsonData.name // moved to wrapper
+  delete jsonData.id // moved to filename
 
   const jsonFile = Buffer.from(JSON.stringify(wrappedJsonData, null, 2)).toString('base64')
   const pngFile = fs.readFileSync(files.pngFile.filepath, 'base64')
@@ -196,12 +201,58 @@ export async function publish(basePath, files) {
   const baseSha = await getBaseSha()
   const path = `${basePath}/${author}/${id}`
   const branchName = `publish/${path}`
-  const title = getTitle(basePath, id)
   const branchResponse = await createBranch(baseSha, branchName)
   const branchSha = !branchResponse.object ? await getBranchSha(branchName) : branchResponse.object.sha
-  await createCommitWithMultipleFiles(branchSha, branchName, await getFiles(path, branchName, jsonFile, pngFile), title)
+  const filesRefs = await getFiles(path, branchName, jsonFile, pngFile)
+  const isUpdate = !!filesRefs.find(file => file.sha)
+  const title = getTitle(basePath, id, isUpdate)
+  await createCommitWithMultipleFiles(branchSha, branchName, filesRefs, title)
 
   const pullRequestResponse = await createPullRequest(branchName, title, description, !!branchResponse.object)
 
   return pullRequestResponse.html_url
+}
+
+export async function fetchCommitHistory(path) {
+  const url = `https://api.github.com/repos/${process.env.GITHUB_REPO}/commits?path=${path}`;
+
+  try {
+    const response = await fetch(url, {
+      headers: getHeaders()
+    });
+
+    if (!response.ok) {
+      throw new Error(`GitHub API responded with a status code of ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    return data.map(record => ({
+      date: record.commit?.committer?.date,
+      sha: record.sha,
+    }))
+  } catch (error) {
+    console.error('Error fetching commit history:', error);
+    return [];
+  }
+}
+
+export async function fetchFileAtCommit(path, sha) {
+  const fileContentUrl = `https://api.github.com/repos/${process.env.GITHUB_REPO}/contents/${path}?ref=${sha}`;
+
+  try {
+    const response = await fetch(fileContentUrl, {
+      headers: getHeaders()
+    });
+
+    if (!response.ok) {
+      throw new Error(`GitHub API responded with a status code of ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    return Buffer.from(data.content, 'base64').toString('utf8')
+  } catch (error) {
+    console.error(`Error fetching file content for commit ${commit.sha}:`, error);
+  }
 }

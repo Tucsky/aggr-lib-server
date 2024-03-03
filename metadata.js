@@ -57,20 +57,41 @@ export async function saveMetadatas() {
 /**
  * Update an item in the metadata file
  * @param {string} basePath metadata id
- * @param {string} jsonPath path to json file
+ * @param {string} metadataItem updated item data
+ * @param {string} sha commit it related to update
  */
-export async function updateItem(basePath, metadataItem) {
+export async function updateItem(basePath, metadataItem, sha) {
   if (!METADATA_CACHE[basePath]) {
     await cacheMetadata(basePath)
   }
 
   const index = METADATA_CACHE[basePath].data.findIndex((row) => row.jsonPath === metadataItem.jsonPath)
 
+  let originalItem = {}
   if (index !== -1) {
+    originalItem = METADATA_CACHE[basePath].data[index]
     METADATA_CACHE[basePath].data.splice(index, 1)
   }
+  console.log('update metadata item', basePath, metadataItem.jsonPath, sha)
 
-  METADATA_CACHE[basePath].data.push(metadataItem)
+  if (sha) {
+    if (originalItem.versions) {
+      originalItem.versions.push({
+        sha,
+        date: new Date().toISOString()
+      })
+    } else {
+      originalItem.versions = [{
+        sha,
+        date: new Date().toISOString()
+      }]
+    }
+  }
+
+  METADATA_CACHE[basePath].data.push({
+    ...originalItem,
+    ...metadataItem
+  })
   METADATA_CACHE[basePath].saved = false
 }
 

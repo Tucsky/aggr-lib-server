@@ -8,8 +8,8 @@ import { fileURLToPath } from 'url'
 import path, { dirname } from 'path'
 import { isValidSignature } from './utils.js'
 import { processCommits } from './sync.js'
-import { getMetadata } from './metadata.js'
-import { publish } from './publish.js'
+import { getMetadata, updateItem } from './metadata.js'
+import { publish, fetchCommitHistory, fetchFileAtCommit } from './publish.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -62,6 +62,48 @@ router.post(
       ctx.body = {
         url
       }
+      ctx.type = 'application/json'
+    } catch (error) {
+      console.error(error.message)
+      ctx.status = 500
+    }
+  }
+)
+
+router.get(
+  '/versions/:path*',
+  async (ctx) => {
+    const path = ctx.params.path
+    const basePath = path.split('/')[0]
+
+    try {
+      const versions = await fetchCommitHistory(path)
+
+      if (versions.length) {
+        await updateItem(basePath, {
+          jsonPath: path,
+          versions
+        })
+      }
+      
+      ctx.body = versions
+      ctx.type = 'application/json'
+    } catch (error) {
+      console.error(error.message)
+      ctx.status = 500
+    }
+  }
+)
+
+router.get(
+  '/version/:sha/:path*',
+  async (ctx) => {
+    const sha = ctx.params.sha
+    const basePath = ctx.params.path
+
+    try {
+      const res = await fetchFileAtCommit(basePath, sha)
+      ctx.body = res
       ctx.type = 'application/json'
     } catch (error) {
       console.error(error.message)

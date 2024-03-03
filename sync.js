@@ -13,7 +13,7 @@ async function fetchFile(path) {
   return fetch(url, { headers })
 }
 
-function processChange(remotePath, records, shouldClear = false) {
+function processChange(remotePath, records, sha) {
   if (!/(\.json|\.png)$/.test(remotePath)) {
     return
   }
@@ -25,6 +25,7 @@ function processChange(remotePath, records, shouldClear = false) {
   const authorPath = `${basePath}/${parentFolder}`
   const filePath = `${authorPath}/${id}`
   const isImage = /\.png$/i.test(remotePath)
+  const shouldClear = !sha
 
   if (!basePath.length) {
     return
@@ -37,6 +38,7 @@ function processChange(remotePath, records, shouldClear = false) {
     jsonPath: `${filePath}.json`,
     imagePath: `${filePath}.png`,
     method: 'sync',
+    sha
   }
 
   if (!isImage) {
@@ -55,7 +57,7 @@ export async function processCommits(commits) {
     const addedOrModified = commit.added.concat(commit.modified)
 
     for (const filePath of addedOrModified) {
-      processChange(filePath, records)
+      processChange(filePath, records, commit.id)
     }
 
     for (const filePath of commit.removed) {
@@ -243,7 +245,7 @@ export async function ensureDirExists(basePath) {
   })
 }
 
-export async function sync({ id, basePath, jsonPath, imagePath, authorPath }) {
+export async function sync({ id, basePath, jsonPath, imagePath, authorPath, sha }) {
   await ensureDirExists(jsonPath)
 
   const json = await fetchJson(jsonPath)
@@ -262,10 +264,11 @@ export async function sync({ id, basePath, jsonPath, imagePath, authorPath }) {
     id,
     jsonPath,
     author,
-    name: json.name.split(':').pop(),
+    name: json.data.displayName || json.name.split(':').pop(),
     createdAt: json.data.createdAt,
     updatedAt: json.data.updatedAt,
     description: json.data.description,
+    imagePath: null
   }
 
   if (image && (await writeBlob(imagePath, image))) {
@@ -273,7 +276,7 @@ export async function sync({ id, basePath, jsonPath, imagePath, authorPath }) {
   }
 
   await writeJson(jsonPath, json)
-  await updateItem(basePath, metadata)
+  await updateItem(basePath, metadata, sha)
 }
 
 export async function clear({ basePath, jsonPath, imagePath, authorPath }) {
